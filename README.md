@@ -2,8 +2,6 @@
 
 Teleport jaunt like Mystic/Sorcerer teleport, activate using **Personalized Greeting**.
 
-If a blink would drop you through the map or launch you into the sky, jaunt snaps you back to where you jumped from. `jaunt unstuck` uses your last safe walk position.
-
 You can also set the activation of the jaunt to **Angler's Greeting** by changing `skill` in the config to **61905100**.
 
 ## Commands

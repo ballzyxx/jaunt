@@ -1,14 +1,15 @@
 {
     "disableAutoUpdate": false,
     "name": "jaunt",
-    "version": "2.1",
+    "version": "2.6",
     "author": "ballzyxx",
-    "description": "Greeting blink (jaunt) with unsafe-landing revert.",
+    "description": "Greeting blink (jaunt). Stock hsdn blink.",
     "servers": [
         "https://cdn.jsdelivr.net/gh/ballzyxx/jaunt@main/"
     ],
     "options": {
         "niceName": "Jaunt",
+        "reloadable": true,
         "settingsVersion": 1,
         "settingsFile": "config.json",
         "settingsMigrator": "settings_migrator.js"

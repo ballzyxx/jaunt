@@ -13,81 +13,6 @@ module.exports = function ff(mod) {
 		"u2": 899999999
 	};
 
-	function vec(p) {
-		if (!p) return null;
-		return { "x": p.x, "y": p.y, "z": p.z };
-	}
-
-	function locTime() {
-		if (!_m.p) return Date.now();
-		return _m.p.time - _m.t + Date.now() - 50;
-	}
-
-	function instantMove(loc, w) {
-		if (!_m.p || !loc || !mod.game || !mod.game.me) return;
-		try {
-			mod.send("C_PLAYER_LOCATION", 5, { ..._m.p, "loc": loc, "w": w, "dest": loc, "type": 7, "time": locTime() });
-			mod.send("S_INSTANT_MOVE", 3, { "gameId": mod.game.me.gameId, "loc": loc, "w": w });
-		} catch (_) {}
-	}
-
-	// Keep blinks on the same floor. Mob Z is only used when it is close to yours.
-	function floorZ(targetZ, playerZ) {
-		if (targetZ == null || Math.abs(targetZ - playerZ) > 80) return playerZ;
-		return targetZ;
-	}
-
-	function dist2(a, b) {
-		const dx = a.x - b.x;
-		const dy = a.y - b.y;
-		return Math.sqrt(dx * dx + dy * dy);
-	}
-
-	function stopGuard() {
-		if (_m.gt) {
-			mod.clearTimeout(_m.gt);
-			_m.gt = null;
-		}
-		_m.jauntUntil = 0;
-		_m.lock = 0;
-	}
-
-	function armGuard(origin, dest, w) {
-		const from = vec(origin);
-		const to = vec(dest);
-		if (!from || !to) return;
-		stopGuard();
-		_m.from = { "loc": from, "w": w };
-		_m.to = to;
-		_m.jauntUntil = Date.now() + 1500;
-		_m.gt = mod.setTimeout(stopGuard, 1500);
-	}
-
-	function isVoid(loc) {
-		if (!_m.jauntUntil || Date.now() > _m.jauntUntil || !_m.from || !loc) return false;
-		const dz = loc.z - _m.from.loc.z;
-		if (dz < -220 || dz > 280) return true;
-		if (dz < -100 && _m.to && dist2(loc, _m.to) < 150) return true;
-		return false;
-	}
-
-	function pullBack() {
-		if (!_m.jauntUntil || !_m.from) return;
-		const from = _m.from;
-		stopGuard();
-		_m.from = from;
-		_m.lock = Date.now() + 500;
-		instantMove(from.loc, from.w);
-		mod.command.message("Jaunt reverted (unsafe landing).".clr("FF0202"));
-	}
-
-	function lastSafeLoc() {
-		if (_m.safe && _m.safe.loc) return _m.safe;
-		if (_m.from) return _m.from;
-		if (_m.s) return { "loc": _m.s, "w": 0 };
-		return null;
-	}
-
 	mod.hook("S_LOGIN", mod.majorPatchVersion >= 114 ? 15 : 14, ({ templateId }) => {
 		_m.m = [1, 10].includes(_m.i = (templateId - 10101) % 100) ? 1 : [6, 7].includes(_m.i) ? 0 : -1;
 		_m.g = [{ "gameId": mod.game.me.gameId }];
@@ -98,7 +23,6 @@ module.exports = function ff(mod) {
 	});
 
 	mod.game.on("leave_game", () => {
-		stopGuard();
 		unload();
 	});
 
@@ -133,13 +57,18 @@ module.exports = function ff(mod) {
 					}
 				}
 				return mod.command.message(`Module debugging ${(mod.settings.debug = !mod.settings.debug) === true ? "enabled.".clr("15FF02") : "disabled.".clr("FF0202")}`);
-			case "unstuck": {
-				const safe = lastSafeLoc();
-				if (!safe) return mod.command.message("No safe position yet.".clr("FF0202"));
-				stopGuard();
-				instantMove(safe.loc, safe.w || 0);
+			case "unstuck":
+				mod.send("C_PLAYER_LOCATION", 5, { ..._m.p, "loc": _m.s, "w": 0, "dest": _m.s, "type": 7, "time": _m.p.time - _m.t + Date.now() - 50 });
+				mod.send("S_INSTANT_MOVE", 3, { "gameId": mod.game.me.gameId, "loc": _m.s, "w": 0 });
+				setTimeout(() => {
+					if ((_m.s.z - _m.p.loc.z) > 100) {
+						const v1 = { ..._m.s, "z": _m.s.z + 100 };
+
+						mod.send("C_PLAYER_LOCATION", 5, { ..._m.p, "loc": v1, "w": 0, "dest": v1, "type": 7, "time": _m.p.time - _m.t + Date.now() - 50 });
+						mod.send("S_INSTANT_MOVE", 3, { "gameId": mod.game.me.gameId, "loc": v1, "w": 0 });
+					}
+				}, 50);
 				return;
-			}
 			default:
 				if (!p2) {
 					return mod.command.message("No parameter.".clr("FF0202"));
@@ -195,6 +124,12 @@ module.exports = function ff(mod) {
 	});
 
 	function load() {
+		if (_m.h.length) {
+			for (const i of _m.h) {
+				mod.unhook(i);
+			}
+			_m.h.length = 0;
+		}
 		function hook() {
 			_m.h.push(mod.hook(...arguments));
 		}
@@ -320,10 +255,10 @@ module.exports = function ff(mod) {
 			}
 
 			if (!_m.x.length || (Math.abs(Math.atan2(_m.x[1].y - loc.y, _m.x[1].x - loc.x) - w) > mod.settings.angle) || ((_m.m === 1) && (_m.x[0] <= 15) && ((Math.abs(Math.atan2(loc.y - _m.x[1].y, loc.x - _m.x[1].x) - _m.x[2]) >= 3.14159 ? 6.28319 - Math.abs(Math.atan2(loc.y - _m.x[1].y, loc.x - _m.x[1].x) - _m.x[2]) : Math.abs(Math.atan2(loc.y - _m.x[1].y, loc.x - _m.x[1].x) - _m.x[2])) <= 0.174533))) {
-				_m.z = { "x": loc.x + mod.settings.direction * (mod.settings.distance * Math.cos(w) * 2), "y": loc.y + mod.settings.direction * (mod.settings.distance * Math.sin(w) * 2), "z": loc.z };
+				_m.z = { "x": loc.x + mod.settings.direction * (mod.settings.distance * Math.cos(w) * 2), "y": loc.y + mod.settings.direction * (mod.settings.distance * Math.sin(w) * 2), "z": loc.z + 25 };
 				_m.w = w;
 			} else {
-				_m.z = { "x": _m.x[1].x + _m.m * (mod.settings.distance * Math.cos(_m.x[2])), "y": _m.x[1].y + _m.m * (mod.settings.distance * Math.sin(_m.x[2])), "z": floorZ(_m.x[1].z, loc.z) };
+				_m.z = { "x": _m.x[1].x + _m.m * (mod.settings.distance * Math.cos(_m.x[2])), "y": _m.x[1].y + _m.m * (mod.settings.distance * Math.sin(_m.x[2])), "z": _m.x[1].z + 25 };
 				_m.w = Math.atan2(_m.x[1].y - _m.z.y, _m.x[1].x - _m.z.x);
 			}
 
@@ -346,11 +281,15 @@ module.exports = function ff(mod) {
 						return () => mod.send("S_DESPAWN_DROPITEM", 4, { "gameId": p1 });
 					}(_m.u1)), mod.settings.cooldown);
 			} else {
-				const origin = vec(loc);
-				const originW = w;
 				setTimeout(() => {
-					instantMove(_m.z, _m.w);
-					armGuard(origin, _m.z, originW);
+					mod.send("C_PLAYER_LOCATION", 5, { ..._m.p, "loc": _m.z, "w": _m.w, "dest": _m.z, "type": 7, "time": _m.p.time - _m.t + Date.now() - 50 });
+					mod.send("S_INSTANT_MOVE", 3, { "gameId": mod.game.me.gameId, "loc": _m.z, "w": _m.w });
+					setTimeout(() => {
+						if ((_m.z.z - _m.p.loc.z) > 100) {
+							mod.send("C_PLAYER_LOCATION", 5, { ..._m.p, "loc": Object.assign(_m.z, { "z": _m.z.z + 100 }), "w": _m.w, "dest": _m.z, "type": 7, "time": _m.p.time - _m.t + Date.now() - 50 });
+							mod.send("S_INSTANT_MOVE", 3, { "gameId": mod.game.me.gameId, "loc": _m.z, "w": _m.w });
+						}
+					}, 100);
 				}, 50);
 			}
 			_m.x = [loc, Date.now()];
@@ -371,30 +310,10 @@ module.exports = function ff(mod) {
 	mod.hook("C_PLAYER_LOCATION", 5, (event) => {
 		_m.p = event;
 		_m.t = Date.now();
-
-		try {
-			if (!event || !event.loc) return;
-
-			if (_m.lock && Date.now() < _m.lock) {
-				if (_m.from && (event.loc.z - _m.from.loc.z < -100 || event.loc.z - _m.from.loc.z > 280))
-					instantMove(_m.from.loc, _m.from.w);
-				return;
-			}
-
-			if (isVoid(event.loc)) {
-				pullBack();
-				return;
-			}
-
-			if (!_m.jauntUntil && event.type !== 7) {
-				_m.safe = { "loc": vec(event.loc), "w": event.w };
-			}
-		} catch (_) {}
 	});
 
 	mod.hook("S_LOAD_TOPO", 3, { "order": 100 }, ({ loc }) => {
 		_m.s = loc;
-		stopGuard();
 	});
 
 	mod.hook("S_PARTY_MEMBER_LIST", mod.majorPatchVersion >= 106 ? 9 : 8, ({ members }) => {
@@ -441,7 +360,18 @@ module.exports = function ff(mod) {
 	}
 
 	this.destructor = () => {
-		stopGuard();
+		unload();
 		mod.command.remove(["jaunt"]);
 	};
+
+	if (mod.settings.enable) {
+		try {
+			if (mod.game && mod.game.me && mod.game.me.templateId) {
+				const templateId = mod.game.me.templateId;
+				_m.m = [1, 10].includes(_m.i = (templateId - 10101) % 100) ? 1 : [6, 7].includes(_m.i) ? 0 : -1;
+				_m.g = [{ "gameId": mod.game.me.gameId }];
+				load();
+			}
+		} catch (_) {}
+	}
 };
