@@ -1,7 +1,7 @@
 {
     "disableAutoUpdate": false,
     "name": "jaunt",
-    "version": "2.6",
+    "version": "2.7",
     "author": "ballzyxx",
     "description": "Greeting blink (jaunt). Stock hsdn blink.",
     "servers": [
