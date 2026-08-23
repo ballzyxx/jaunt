@@ -1,7 +1,7 @@
 {
     "disableAutoUpdate": false,
     "name": "jaunt",
-    "version": "2.0",
+    "version": "2.1",
     "author": "ballzyxx",
     "description": "Greeting blink (jaunt) with unsafe-landing revert.",
     "servers": [

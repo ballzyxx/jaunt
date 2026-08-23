@@ -14,17 +14,21 @@ module.exports = function ff(mod) {
 	};
 
 	function vec(p) {
+		if (!p) return null;
 		return { "x": p.x, "y": p.y, "z": p.z };
 	}
 
 	function locTime() {
+		if (!_m.p) return Date.now();
 		return _m.p.time - _m.t + Date.now() - 50;
 	}
 
 	function instantMove(loc, w) {
-		if (!_m.p || !loc) return;
-		mod.send("C_PLAYER_LOCATION", 5, { ..._m.p, "loc": loc, "w": w, "dest": loc, "type": 7, "time": locTime() });
-		mod.send("S_INSTANT_MOVE", 3, { "gameId": mod.game.me.gameId, "loc": loc, "w": w });
+		if (!_m.p || !loc || !mod.game || !mod.game.me) return;
+		try {
+			mod.send("C_PLAYER_LOCATION", 5, { ..._m.p, "loc": loc, "w": w, "dest": loc, "type": 7, "time": locTime() });
+			mod.send("S_INSTANT_MOVE", 3, { "gameId": mod.game.me.gameId, "loc": loc, "w": w });
+		} catch (_) {}
 	}
 
 	// Keep blinks on the same floor. Mob Z is only used when it is close to yours.
@@ -44,22 +48,23 @@ module.exports = function ff(mod) {
 			mod.clearTimeout(_m.gt);
 			_m.gt = null;
 		}
-		_m.guard = false;
+		_m.jauntUntil = 0;
+		_m.lock = 0;
 	}
 
 	function armGuard(origin, dest, w) {
+		const from = vec(origin);
+		const to = vec(dest);
+		if (!from || !to) return;
 		stopGuard();
-		_m.guard = true;
-		_m.from = { "loc": vec(origin), "w": w };
-		_m.to = vec(dest);
-		_m.gt = mod.setTimeout(() => {
-			_m.guard = false;
-			_m.gt = null;
-		}, 1500);
+		_m.from = { "loc": from, "w": w };
+		_m.to = to;
+		_m.jauntUntil = Date.now() + 1500;
+		_m.gt = mod.setTimeout(stopGuard, 1500);
 	}
 
 	function isVoid(loc) {
-		if (!_m.from) return false;
+		if (!_m.jauntUntil || Date.now() > _m.jauntUntil || !_m.from || !loc) return false;
 		const dz = loc.z - _m.from.loc.z;
 		if (dz < -220 || dz > 280) return true;
 		if (dz < -100 && _m.to && dist2(loc, _m.to) < 150) return true;
@@ -67,10 +72,12 @@ module.exports = function ff(mod) {
 	}
 
 	function pullBack() {
-		if (!_m.from) return;
+		if (!_m.jauntUntil || !_m.from) return;
+		const from = _m.from;
 		stopGuard();
+		_m.from = from;
 		_m.lock = Date.now() + 500;
-		instantMove(_m.from.loc, _m.from.w);
+		instantMove(from.loc, from.w);
 		mod.command.message("Jaunt reverted (unsafe landing).".clr("FF0202"));
 	}
 
@@ -92,7 +99,6 @@ module.exports = function ff(mod) {
 
 	mod.game.on("leave_game", () => {
 		stopGuard();
-		_m.safe = _m.from = _m.to = null;
 		unload();
 	});
 
@@ -366,26 +372,28 @@ module.exports = function ff(mod) {
 		_m.p = event;
 		_m.t = Date.now();
 
-		if (_m.lock && Date.now() < _m.lock) {
-			if (_m.from && isVoid(event.loc)) instantMove(_m.from.loc, _m.from.w);
-			return;
-		}
+		try {
+			if (!event || !event.loc) return;
 
-		if (_m.guard && isVoid(event.loc)) {
-			pullBack();
-			return;
-		}
+			if (_m.lock && Date.now() < _m.lock) {
+				if (_m.from && (event.loc.z - _m.from.loc.z < -100 || event.loc.z - _m.from.loc.z > 280))
+					instantMove(_m.from.loc, _m.from.w);
+				return;
+			}
 
-		if (!_m.guard && event.type !== 7) {
-			if (!(_m.safe && event.loc.z - _m.safe.loc.z < -80)) {
+			if (isVoid(event.loc)) {
+				pullBack();
+				return;
+			}
+
+			if (!_m.jauntUntil && event.type !== 7) {
 				_m.safe = { "loc": vec(event.loc), "w": event.w };
 			}
-		}
+		} catch (_) {}
 	});
 
 	mod.hook("S_LOAD_TOPO", 3, { "order": 100 }, ({ loc }) => {
 		_m.s = loc;
-		_m.safe = { "loc": vec(loc), "w": 0 };
 		stopGuard();
 	});
 

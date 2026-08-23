@@ -15,7 +15,7 @@ const FILE_ENTRIES = [
 const DEFS = {
     "C_PLAYER_LOCATION": 5,
     "C_START_INSTANCE_SKILL": [7, 8],
-    "S_ABNORMALITY_BEGIN": [4, 5],
+    "S_ABNORMALITY_BEGIN": 4,
     "S_ABNORMALITY_END": 1,
     "S_ACTION_END": 5,
     "S_ACTION_STAGE": 9,
@@ -25,7 +25,7 @@ const DEFS = {
     "S_INSTANT_MOVE": 3,
     "S_LEAVE_PARTY": 1,
     "S_LOAD_TOPO": 3,
-    "S_LOGIN": [14, 15],
+    "S_LOGIN": 14,
     "S_NPC_LOCATION": 3,
     "S_PARTY_MEMBER_LIST": [8, 9],
     "S_SPAWN_DROPITEM": [6, 9],
