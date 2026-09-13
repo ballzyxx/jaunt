@@ -9,7 +9,7 @@ const DefaultSettings = {
 	"distance": 170,
 	"direction": 1,
 	"cooldown": 3000,
-	"skill": 60401301 // 60401301 - обычное приветствие, 61905100 - приветствие рыбака
+	"skill": 60401301 // 60401301 - normal greeting, 61905100 - angler's greeting
 };
 
 module.exports = function MigrateSettings(from_ver, to_ver, settings) {
