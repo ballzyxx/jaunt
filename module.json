@@ -3,7 +3,7 @@
     "name": "jaunt",
     "version": "2.8",
     "author": "ballzyxx",
-    "description": "Greeting blink (jaunt). Stock hsdn blink.",
+    "description": "Greeting blink (jaunt).",
     "servers": [
         "https://raw.githubusercontent.com/ballzyxx/jaunt/main/"
     ],
